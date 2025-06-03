@@ -7,7 +7,10 @@
   <style>
     html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
     body { position: relative; }
-    canvas {display:block; background:#181c20; width:100vw; height:100vh; cursor:crosshair;}
+    canvas {
+      display:block; background:#181c20; width:100vw; height:100vh;
+      cursor:crosshair; border:4px solid #353543; box-shadow:0 0 18px #000;
+    }
     #hud, #help {position:absolute; left:20px; top:10px;}
     #hud, #help, .hidden {display:none;}
     #overlay {
@@ -48,6 +51,18 @@
       text-shadow: 0 0 4px #008;
       letter-spacing: 0.12em;
     }
+    .menu-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1.2em;
+      padding: 0.6em 1.2em;
+      margin: 0.4em;
+      background:#242837;
+      color:#fdf8e6;
+      border:2px solid #59607c;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    .menu-btn:hover { filter: brightness(1.2); }
     /* Scanline effect */
     #overlay-content::after {
       content:'';
@@ -73,6 +88,7 @@ WASD: Move<br>
 Mouse: Aim<br>
 LMB: Shoot<br>
 Q/E: Cycle weapons<br>
+E: Skip story
 Starting weapons: Blaster / Spread Shot / Pierce Beam
 </div>
 
@@ -127,10 +143,7 @@ let menuText = [
   "",
   "Survive endless asteroid fields and",
   "unlock new weapons as you progress.",
-  "",
-  "Use Q and E to cycle weapons.",
-  "",
-  "PRESS ANY KEY TO BEGIN"
+  "Use Q and E to cycle weapons."
 ];
 let storyPage = 0;
 const storyPages = [
@@ -146,6 +159,19 @@ function showMenu() {
   gameState = GAME_STATES.MENU;
   overlay.style.display = "flex";
   renderOverlayText(menuText, "#fc9", 74, true);
+  let box = document.createElement('div');
+  box.style.textAlign = 'center';
+  let start = document.createElement('button');
+  start.textContent = 'START';
+  start.className = 'menu-btn';
+  start.onclick = showStory;
+  let settings = document.createElement('button');
+  settings.textContent = 'SETTINGS';
+  settings.className = 'menu-btn';
+  settings.onclick = () => alert('Settings coming soon!');
+  box.appendChild(start);
+  box.appendChild(settings);
+  overlayContent.appendChild(box);
 }
 function showStory() {
   gameState = GAME_STATES.STORY;
@@ -157,9 +183,9 @@ function showStoryPage() {
   let page = storyPages[storyPage];
   renderOverlayText(page, "#fa5", 38, false);
   if (storyPage === storyPages.length-1) {
-    setTimeout(() => showPressKey("Press any key to continue..."), 1000);
+    setTimeout(() => showPressKey("Press any key to continue... (E to skip)"), 1000);
   } else {
-    setTimeout(() => showPressKey("Press any key..."), 900);
+    setTimeout(() => showPressKey("Press any key... (E to skip)"), 900);
   }
 }
 function showGameOver() {
@@ -208,12 +234,17 @@ window.addEventListener('keydown', e => {
   if (gameState === GAME_STATES.MENU) {
     showStory();
   } else if (gameState === GAME_STATES.STORY) {
-    storyPage++;
-    if (storyPage >= storyPages.length) {
+    if (e.key.toLowerCase() === 'e') {
       overlay.style.display = "none";
       startGame();
     } else {
-      showStoryPage();
+      storyPage++;
+      if (storyPage >= storyPages.length) {
+        overlay.style.display = "none";
+        startGame();
+      } else {
+        showStoryPage();
+      }
     }
   } else if (gameState === GAME_STATES.GAMEOVER) {
     showMenu();
@@ -353,6 +384,26 @@ function worldToScreen(wx, wy) {
   if (dy < -WORLD_SIZE/2) dy += WORLD_SIZE;
   return [Math.floor(width / 2 + dx), Math.floor(height / 2 + dy)];
 }
+
+function drawWorldBorder() {
+  ctx.save();
+  ctx.strokeStyle = '#595d71';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  let [sx, sy] = worldToScreen(0, 0);
+  ctx.moveTo(sx, sy);
+  [sx, sy] = worldToScreen(WORLD_SIZE, 0);
+  ctx.lineTo(sx, sy);
+  [sx, sy] = worldToScreen(WORLD_SIZE, WORLD_SIZE);
+  ctx.lineTo(sx, sy);
+  [sx, sy] = worldToScreen(0, WORLD_SIZE);
+  ctx.lineTo(sx, sy);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
 let asteroids = [];
 function placeAsteroids() {
   asteroids = [];
@@ -374,7 +425,9 @@ function spawnParticles(x, y, col, amt, size=2, life=28) {
     particles.push({
       x, y,
       vx: Math.cos(dir)*spd, vy: Math.sin(dir)*spd,
-      life: life+rand(-5,5), age: 0, color: col, size: size+rand(-1,1)
+      life: life+rand(-5,5), age: 0, color: col,
+      size: size+rand(-1,1), rot: rand(0,TAU), vr: rand(-0.1,0.1),
+      shape: Math.random()<0.5 ? 'circle' : 'star'
     });
   }
 }
@@ -383,6 +436,7 @@ function updateParticles() {
     p.x = wrap(p.x + p.vx, WORLD_SIZE);
     p.y = wrap(p.y + p.vy, WORLD_SIZE);
     p.vx *= 0.97; p.vy *= 0.97;
+    p.rot += p.vr;
     p.age++; p.size *= 0.97;
   }
   particles = particles.filter(p => p.age < p.life && p.size > 0.5);
@@ -507,6 +561,8 @@ function loop() {
   // ---- Rendering ----
   ctx.clearRect(0,0,width,height);
 
+  drawWorldBorder();
+
   // Stars
   ctx.save();
   for (let i = 0; i < 250; ++i) {
@@ -525,10 +581,26 @@ function loop() {
     let [sx,sy] = worldToScreen(p.x, p.y);
     ctx.save();
     ctx.globalAlpha = clamp(1 - p.age/p.life, 0.15, 1.0);
+    ctx.translate(sx, sy);
+    ctx.rotate(p.rot);
     ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(sx, sy, p.size, 0, TAU);
-    ctx.fill();
+    ctx.strokeStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
+    if (p.shape === 'star') {
+      ctx.beginPath();
+      ctx.moveTo(-p.size, 0);
+      ctx.lineTo(p.size, 0);
+      ctx.moveTo(0, -p.size);
+      ctx.lineTo(0, p.size);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 0, p.size, 0, TAU);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
