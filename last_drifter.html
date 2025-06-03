@@ -72,8 +72,8 @@
 WASD: Move<br>
 Mouse: Aim<br>
 LMB: Shoot<br>
-1/2/3: Switch weapon<br>
-Blaster / Spread Shot / Pierce Beam
+Q/E: Cycle weapons<br>
+Starting weapons: Blaster / Spread Shot / Pierce Beam
 </div>
 
 <div id="overlay" style="display:flex;">
@@ -125,10 +125,10 @@ let gameOverText = [
 let menuText = [
   "COSMIC WRECK: THE LAST DRIFTER",
   "",
-  "A procedurally generated asteroid game",
-  "with destructive environments.",
+  "Survive endless asteroid fields and",
+  "unlock new weapons as you progress.",
   "",
-  "INSPIRED BY DEMONTOWER / NITW.",
+  "Use Q and E to cycle weapons.",
   "",
   "PRESS ANY KEY TO BEGIN"
 ];
@@ -145,7 +145,7 @@ let overlayContent = document.getElementById('overlay-content');
 function showMenu() {
   gameState = GAME_STATES.MENU;
   overlay.style.display = "flex";
-  renderOverlayText(menuText, "#fc9", 64, true);
+  renderOverlayText(menuText, "#fc9", 74, true);
 }
 function showStory() {
   gameState = GAME_STATES.STORY;
@@ -188,6 +188,19 @@ function renderOverlayText(lines, color="#fda", glow=52, center=false) {
     line.style.marginBottom = "0.6em";
     overlayContent.appendChild(line);
   }
+}
+
+function showLevelOverlay(text) {
+  overlay.style.display = "flex";
+  renderOverlayText([text], "#9f9", 40, true);
+  setTimeout(() => { overlay.style.display = "none"; }, 1200);
+}
+
+function nextLevel() {
+  level++;
+  if (unlockedWeapons < weapons.length) unlockedWeapons++;
+  placeAsteroids();
+  showLevelOverlay(`Level ${level}! New weapon: ${weapons[unlockedWeapons-1].name}`);
 }
 
 // Handle key presses for menu/story/gameover
@@ -249,6 +262,9 @@ const ship = {
   vx: 0, vy: 0, rot: 0, size: 16,
   cooldown: 0, weapon: 0
 };
+let unlockedWeapons = 3;
+let level = 1;
+let asteroidBase = 20, asteroidGrowth = 5;
 const weapons = [
   {
     name: "Blaster", color: "#d6ffe0", cooldown: 7,
@@ -284,13 +300,41 @@ const weapons = [
     }]
   }
 ];
+const extraWeaponNames = [
+"Pulse Blaster", "Photon Cannon", "Plasma Cutter", "Ion Rifle", "Meteor Slicer", "Nova Lance", "Stellar Hammer", "Nebula Flare", "Graviton Wave", "Vortex Launcher",
+"Quantum Shredder", "Obsidian Drill", "Solar Flaregun", "Singularity Projector", "Asteroid Breaker", "Gamma Ray Emitter", "Void Disruptor", "Cosmic Railgun", "Electron Splitter", "Particle Saw",
+"Chain Lightning Arc", "Thermal Burster", "Spectral Scythe", "Dark Matter Blaster", "Laser Net", "Shrapnel Mortar", "Explosive Harpoon", "Plasma Shuriken", "Molecular Blade", "EMP Coilgun",
+"Nano Swarm Launcher", "Starfire Revolver", "Antimatter Pistol", "Cryo Bolter", "Pyrostream Jet", "Seismic Grenade", "Magnetron Flail", "Wormhole Disk", "Astro Javelin", "Chrono Dagger",
+"Fusion Accelerator", "Tachyon Bow", "Hyperflux Cannon", "Blitz Gauntlets", "Specter Shotgun", "Pulse Hammer", "Gravity Mine Layer", "Tesseract Cleaver", "Polarity Rifle", "Lumin Blade",
+"Cosmo Chakram", "Celestial Darts", "Solar Smasher", "Glacier Emitter", "Disassembler Beam", "Phase Cutter", "Echo Launcher", "Void Shard", "Cascade Emitter", "Pulse Trident",
+"Ion Fist", "Fragmentation Disc", "Neutron Scattergun", "Molten Thrower", "Frostbyte Cannon", "Radiation Spitter", "EMP Bombard", "Comet Lance", "Spectra Revolver", "Nano-Edge Knife",
+"Tesla Rifle", "Riftmaker", "Spacetime Harpoon", "Wraith Launcher", "Thunder Coil", "Quark Bazooka", "Solaris Chakram", "Pulsar Sabre", "Oblivion Ray", "Maelstrom Axe",
+"Blackhole Grenade", "Shockwave Launcher", "Meteor Cluster", "Grav Blade", "Spectral Mace", "Plasma Bident", "Inferno Slinger", "Cryo Pike", "Gamma Disc", "Quantum Flail",
+"Orbiting Blade", "Void Bow", "Nano Disruptor", "Hypernova Bomb", "Vaporizer", "Shock Prism", "Celestial Pistol", "Dynamo Javelin", "Starburst Gun", "Astral Saber",
+"Darklight Repeater", "Comet Slicer", "Flux Hammer", "Sonic Emitter", "Dimensional Blade"
+];
+for (let i=0; i<extraWeaponNames.length; ++i) {
+  weapons.push({
+    name: extraWeaponNames[i],
+    color: `hsl(${(i*37)%360},100%,70%)`,
+    cooldown: 12,
+    shoot: weapons[0].shoot
+  });
+}
 let keys = {}, mouse = {x: width / 2, y: height / 2, down: false};
 window.addEventListener('keydown', e => {
   if (gameState !== GAME_STATES.PLAYING) return;
   keys[e.key.toLowerCase()] = true;
-  if (e.key === '1') ship.weapon = 0;
-  if (e.key === '2') ship.weapon = 1;
-  if (e.key === '3') ship.weapon = 2;
+  let num = parseInt(e.key);
+  if (!isNaN(num) && num >= 1 && num <= unlockedWeapons && num <= 9) {
+    ship.weapon = num-1;
+  }
+  if (e.key.toLowerCase() === 'q') {
+    ship.weapon = (ship.weapon - 1 + unlockedWeapons) % unlockedWeapons;
+  }
+  if (e.key.toLowerCase() === 'e') {
+    ship.weapon = (ship.weapon + 1) % unlockedWeapons;
+  }
 });
 window.addEventListener('keyup', e => {
   if (gameState !== GAME_STATES.PLAYING) return;
@@ -312,7 +356,8 @@ function worldToScreen(wx, wy) {
 let asteroids = [];
 function placeAsteroids() {
   asteroids = [];
-  for (let i = 0; i < ASTEROID_COUNT; ++i) {
+  let count = asteroidBase + (level-1) * asteroidGrowth;
+  for (let i = 0; i < count; ++i) {
     let ax = rand(0, WORLD_SIZE);
     let ay = rand(0, WORLD_SIZE);
     let r = rand(ASTEROID_MIN, ASTEROID_MAX);
@@ -355,6 +400,8 @@ function startGame() {
   document.getElementById('help').style.display = '';
   overlay.style.display = "none";
   gameState = GAME_STATES.PLAYING;
+  level = 1;
+  unlockedWeapons = 3;
   resetShip();
   placeAsteroids();
   lasers = [];
@@ -400,6 +447,9 @@ function loop() {
     ast.ang += ast.spin;
   }
   asteroids = asteroids.filter(ast => ast.alive);
+  if (asteroids.length === 0) {
+    nextLevel();
+  }
 
   // --- Particles
   updateParticles();
@@ -527,6 +577,7 @@ function loop() {
 
   // HUD
   document.getElementById('hud').innerText =
+    `Level: ${level}\n` +
     `Weapon: ${weapons[ship.weapon].name} (${ship.weapon+1})\n` +
     `Asteroids: ${asteroids.length}\n` +
     `Position: (${ship.x.toFixed(0)}, ${ship.y.toFixed(0)})\n` +
