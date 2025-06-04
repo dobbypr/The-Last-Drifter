@@ -126,6 +126,7 @@ function nextLevel() {
   level++;
   if (unlockedWeapons < weapons.length) unlockedWeapons++;
   placeAsteroids();
+  placeEnemies();
   showLevelOverlay(`Level ${level}! New weapon: ${weapons[unlockedWeapons-1].name}`);
 }
 
@@ -191,7 +192,8 @@ canvas.width = width; canvas.height = height;
 const ship = {
   x: WORLD_SIZE / 2, y: WORLD_SIZE / 2,
   vx: 0, vy: 0, rot: 0, size: 16,
-  cooldown: 0, weapon: 0
+  cooldown: 0, weapon: 0,
+  hp: 3
 };
 let unlockedWeapons = 3;
 let level = 1;
@@ -317,8 +319,22 @@ function placeAsteroids() {
     asteroids.push(generateAsteroid(ax, ay, r, 1, s));
   }
 }
+
+function placeEnemies() {
+  enemies = [];
+  let count = Math.min(level, 5);
+  for (let i = 0; i < count; ++i) {
+    enemies.push({
+      x: rand(0, WORLD_SIZE),
+      y: rand(0, WORLD_SIZE),
+      vx: 0, vy: 0, size: 12, angle: 0, alive: true
+    });
+  }
+}
 let lasers = [];
 let particles = [];
+let enemies = [];
+let score = 0;
 function spawnParticles(x, y, col, amt, size=2, life=28) {
   for (let i = 0; i < amt; ++i) {
     let dir = rand(0, TAU);
@@ -349,6 +365,7 @@ function resetShip() {
   ship.y = WORLD_SIZE / 2;
   ship.vx = 0; ship.vy = 0;
   ship.rot = 0; ship.cooldown = 0; ship.weapon = 0;
+  ship.hp = 3;
 }
 function startGame() {
   document.getElementById('hud').style.display = '';
@@ -359,6 +376,8 @@ function startGame() {
   unlockedWeapons = 3;
   resetShip();
   placeAsteroids();
+  placeEnemies();
+  score = 0;
   lasers = [];
   particles = [];
   requestAnimationFrame(loop);
@@ -406,6 +425,24 @@ function loop() {
     nextLevel();
   }
 
+  // --- Enemies
+  for (let en of enemies) {
+    let dx = ship.x - en.x;
+    let dy = ship.y - en.y;
+    if (dx > WORLD_SIZE/2) dx -= WORLD_SIZE;
+    if (dx < -WORLD_SIZE/2) dx += WORLD_SIZE;
+    if (dy > WORLD_SIZE/2) dy -= WORLD_SIZE;
+    if (dy < -WORLD_SIZE/2) dy += WORLD_SIZE;
+    let dir = Math.atan2(dy, dx);
+    en.angle = dir;
+    en.vx += Math.cos(dir) * 0.05;
+    en.vy += Math.sin(dir) * 0.05;
+    en.vx *= 0.98; en.vy *= 0.98;
+    en.x = wrap(en.x + en.vx, WORLD_SIZE);
+    en.y = wrap(en.y + en.vy, WORLD_SIZE);
+  }
+  enemies = enemies.filter(e => e.alive);
+
   // --- Particles
   updateParticles();
 
@@ -437,10 +474,26 @@ function loop() {
           } else {
             ast.alive = false;
             spawnParticles(ast.x, ast.y, weapons[laser.type].color, rand(20,36), 2.6, 25);
+            score += 10;
           }
           ast.vx += Math.cos(laser.dir) * (laser.thick || 1.5) * 0.21;
           ast.vy += Math.sin(laser.dir) * (laser.thick || 1.5) * 0.21;
         }
+      }
+    }
+    for (let en of enemies) {
+      if (!en.alive) continue;
+      let dx = (laser.x - en.x), dy = (laser.y - en.y);
+      if (dx > WORLD_SIZE/2) dx -= WORLD_SIZE;
+      if (dx < -WORLD_SIZE/2) dx += WORLD_SIZE;
+      if (dy > WORLD_SIZE/2) dy -= WORLD_SIZE;
+      if (dy < -WORLD_SIZE/2) dy += WORLD_SIZE;
+      let dist = Math.hypot(dx, dy);
+      if (dist < en.size + 6) {
+        en.alive = false;
+        if (!laser.pierce) laser.alive = false;
+        spawnParticles(en.x, en.y, weapons[laser.type].color, rand(15,25), 2.5, 20);
+        score += 30;
       }
     }
   }
@@ -455,7 +508,25 @@ function loop() {
     if (dy < -WORLD_SIZE/2) dy += WORLD_SIZE;
     let dist = Math.hypot(dx, dy);
     if (dist < ast.r + ship.size*0.7) {
-      if (pointInPoly(ast, dx, dy)) gameOver = true;
+      if (pointInPoly(ast, dx, dy)) {
+        ship.hp--;
+        spawnParticles(ship.x, ship.y, '#f66', 18, 3, 28);
+        if (ship.hp <= 0) gameOver = true;
+      }
+    }
+  }
+  for (let en of enemies) {
+    let dx = (ship.x - en.x), dy = (ship.y - en.y);
+    if (dx > WORLD_SIZE/2) dx -= WORLD_SIZE;
+    if (dx < -WORLD_SIZE/2) dx += WORLD_SIZE;
+    if (dy > WORLD_SIZE/2) dy -= WORLD_SIZE;
+    if (dy < -WORLD_SIZE/2) dy += WORLD_SIZE;
+    let dist = Math.hypot(dx, dy);
+    if (dist < en.size + ship.size*0.6) {
+      ship.hp--;
+      en.alive = false;
+      spawnParticles(en.x, en.y, '#f66', 20, 3, 30);
+      if (ship.hp <= 0) gameOver = true;
     }
   }
 
@@ -507,6 +578,7 @@ function loop() {
 
   // Asteroids
   for (let ast of asteroids) drawAsteroid(ast);
+  for (let en of enemies) drawEnemy(en);
 
   // Lasers
   for (let l of lasers) {
@@ -553,6 +625,9 @@ function loop() {
     `Level: ${level}\n` +
     `Weapon: ${weapons[ship.weapon].name} (${ship.weapon+1})\n` +
     `Asteroids: ${asteroids.length}\n` +
+    `Enemies: ${enemies.length}\n` +
+    `Health: ${'\u2665'.repeat(ship.hp)}\n` +
+    `Score: ${score}\n` +
     `Position: (${ship.x.toFixed(0)}, ${ship.y.toFixed(0)})\n` +
     (gameOver ? 'GAME OVER - reload to play again' : '');
 
@@ -618,6 +693,23 @@ function drawAsteroid(ast) {
   ctx.lineWidth = 2;
   ctx.shadowBlur = 0;
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawEnemy(en) {
+  let [sx, sy] = worldToScreen(en.x, en.y);
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(en.angle);
+  ctx.beginPath();
+  ctx.moveTo(en.size, 0);
+  ctx.lineTo(-en.size * 0.6, -en.size * 0.6);
+  ctx.lineTo(-en.size * 0.6, en.size * 0.6);
+  ctx.closePath();
+  ctx.fillStyle = '#ff7b7b';
+  ctx.shadowColor = '#f22';
+  ctx.shadowBlur = 10;
+  ctx.fill();
   ctx.restore();
 }
 function shootCurrentWeapon() {
