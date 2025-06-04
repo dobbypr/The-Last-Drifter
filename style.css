@@ -2,6 +2,12 @@
 html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
 body { position: relative; }
 # world styling moved to world.css
+    html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
+    body { position: relative; }
+    canvas {
+      display:block; background:#181c20; width:100vw; height:100vh;
+      cursor:crosshair; border:4px solid #353543; box-shadow:0 0 18px #000;
+    }
     #hud, #help {position:absolute; left:20px; top:10px;}
     #hud, #help, .hidden {display:none;}
     #overlay {
