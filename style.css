@@ -1,0 +1,71 @@
+# html and body set up a full screen dark background
+html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
+body { position: relative; }
+# world styling moved to world.css
+    #hud, #help {position:absolute; left:20px; top:10px;}
+    #hud, #help, .hidden {display:none;}
+    #overlay {
+      position: absolute; left:0; top:0; width:100vw; height:100vh; z-index: 10;
+      display:flex; align-items:center; justify-content:center;
+      pointer-events: auto;
+    }
+    #overlay-bg {
+      position:absolute; left:0; top:0; width:100vw; height:100vh;
+      background:linear-gradient(to bottom,#181c20 95%,#090a0f 100%);
+      opacity:0.95;
+      pointer-events:none;
+    }
+    #overlay-content {
+      position:relative; padding: 36px 26px;
+      color:#fffee1; text-shadow: 0 0 7px #005, 0 0 2px #8ad, 0 1px 0 #000;
+      font-family: 'Press Start 2P', monospace;
+      font-size:1.1vw; line-height:2.25vw;
+      letter-spacing:0.04em;
+      text-align: left;
+      max-width:64vw; max-height:70vh; overflow-y:auto;
+      box-shadow: 0 0 24px 8px #000e;
+      background:rgba(23,24,33,0.98);
+      border-radius:12px; border:2px solid #343348;
+      filter: contrast(1.3) brightness(1.05);
+      transition: filter 0.14s;
+    }
+    @media (max-width: 700px) {
+      #overlay-content { font-size:3vw; line-height:4vw; max-width:98vw; }
+    }
+    #press-key {
+      display:block;
+      color:#8ac2ff;
+      text-align:center;
+      font-size:0.8em;
+      margin-top:2.2em;
+      opacity:0.8;
+      text-shadow: 0 0 4px #008;
+      letter-spacing: 0.12em;
+    }
+    .menu-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1.2em;
+      padding: 0.6em 1.2em;
+      margin: 0.4em;
+      background:#242837;
+      color:#fdf8e6;
+      border:2px solid #59607c;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    .menu-btn:hover { filter: brightness(1.2); }
+    /* Scanline effect */
+    #overlay-content::after {
+      content:'';
+      pointer-events:none;
+      position:absolute; left:0;top:0;width:100%;height:100%;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.11) 3px,
+        rgba(0,0,0,0.01) 5px
+      );
+      mix-blend-mode: multiply;
+      opacity:0.32;
+    }
