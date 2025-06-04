@@ -287,7 +287,7 @@ function worldToScreen(wx, wy) {
 
 function drawWorldBorder() {
   ctx.save();
-  ctx.strokeStyle = '#595d71';
+  ctx.strokeStyle = '#fff';
   ctx.lineWidth = 3;
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 8;
