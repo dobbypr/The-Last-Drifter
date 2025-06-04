@@ -1,3 +1,6 @@
+import { EnemySystem } from './EnemySystem.js';
+import { AsteroidSystem } from './AsteroidSystem.js';
+
 // ---- Story, Menu, and Pixel Intro ----
 const GAME_STATES = {
   MENU: 0,
@@ -127,6 +130,7 @@ function nextLevel() {
   if (unlockedWeapons < weapons.length) unlockedWeapons++;
   placeAsteroids();
   placeEnemies();
+  asteroidSystem.setLevel(level);
   showLevelOverlay(`Level ${level}! New weapon: ${weapons[unlockedWeapons-1].name}`);
 }
 
@@ -198,6 +202,10 @@ const ship = {
 let unlockedWeapons = 3;
 let level = 1;
 let asteroidBase = 20, asteroidGrowth = 5;
+const levelMgr = { get currentLevel() { return level; } };
+const hud = { flash: msg => console.log(msg) };
+const enemySystem = new EnemySystem(ship, levelMgr);
+const asteroidSystem = new AsteroidSystem(ship, hud);
 const weapons = [
   {
     name: "Blaster", color: "#d6ffe0", cooldown: 7,
@@ -377,14 +385,23 @@ function startGame() {
   resetShip();
   placeAsteroids();
   placeEnemies();
+  asteroidSystem.rocks = [];
+  asteroidSystem.loot = [];
+  asteroidSystem.setLevel(level);
+  enemySystem.enemies = [];
+  enemySystem.bullets = [];
   score = 0;
   lasers = [];
   particles = [];
   requestAnimationFrame(loop);
 }
 
+let lastTime = performance.now();
 function loop() {
   if (gameState !== GAME_STATES.PLAYING) return;
+  const now = performance.now();
+  const dt = now - lastTime;
+  lastTime = now;
   width = window.innerWidth; height = window.innerHeight;
   canvas.width = width; canvas.height = height;
 
@@ -445,6 +462,8 @@ function loop() {
 
   // --- Particles
   updateParticles();
+  enemySystem.update(dt);
+  asteroidSystem.update(dt);
 
   // --- Shooting
   if (mouse.down && ship.cooldown === 0) shootCurrentWeapon();
@@ -579,6 +598,8 @@ function loop() {
   // Asteroids
   for (let ast of asteroids) drawAsteroid(ast);
   for (let en of enemies) drawEnemy(en);
+  enemySystem.draw(ctx);
+  asteroidSystem.draw(ctx);
 
   // Lasers
   for (let l of lasers) {
