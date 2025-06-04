@@ -1,3 +1,7 @@
+# html and body set up a full screen dark background
+html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
+body { position: relative; }
+# world styling moved to world.css
     html, body {margin:0; height:100%; overflow:hidden; background:#181c20;}
     body { position: relative; }
     canvas {
